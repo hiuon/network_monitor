@@ -31,19 +31,30 @@ func main() {
 
 	//Choose device and get its name
 	device := getDeviceName()
+
+
+	fmt.Print("Enter test time duration (seconds): ")
+	var timeForStatistics int
+	_, err = fmt.Scanln(&timeForStatistics)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Open device
 	handle, err = pcap.OpenLive(device, int32(snapshotLen), promiscuous, timeout)
 	if err != nil {log.Fatal(err) }
 	defer handle.Close()
 
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	//get current time for cycle
+	start := time.Now()
 	for packet := range packetSource.Packets() {
 		printPacketInfo(packet)
 		w.WritePacket(packet.Metadata().CaptureInfo, packet.Data())
 		packetCount++
 
 		// Only capture 100 and then stop
-		if packetCount > 100 {
+		if time.Since(start).Seconds() > float64(timeForStatistics) {
 			break
 		}
 	}
@@ -65,7 +76,7 @@ func getDeviceName() string {
 		}
 	}
 
-	fmt.Println("Enter number of the device: ")
+	fmt.Print("\nEnter number of the device: ")
 	var number int
 	_, err = fmt.Scanln(&number)
 	if err != nil {
