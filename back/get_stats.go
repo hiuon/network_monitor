@@ -34,9 +34,18 @@ func startGetStatistics() {
 
 	fmt.Print("Enter test time duration (seconds): ")
 	var timeForStatistics int
-	_, err = fmt.Scanln(&timeForStatistics)
-	if err != nil {
-		log.Fatal(err)
+	//_, err = fmt.Scanln(&timeForStatistics)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	timeForStatistics = 240
+	stats := [240]dataStats{}
+	for i := 0; i < 240; i++ {
+		stats[i].srcPort = make(map[int]int)
+		stats[i].dstPort = make(map[int]int)
+		stats[i].protocols = make(map[string]int)
+		stats[i].srcAddrIp = make(map[int]int)
+		stats[i].dstAddrIp = make(map[int]int)
 	}
 
 	// Open device
@@ -47,18 +56,34 @@ func startGetStatistics() {
 	defer handle.Close()
 
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+
+
+	//init stats structure
+
+
 	//get current time for cycle
 	start := time.Now()
+	//start
+	seconds := 0
 	for packet := range packetSource.Packets() {
-		printPacketInfo(packet)
+		if int(time.Since(start).Seconds()) > seconds + 1 {
+			seconds++
+		}
+		printPacketInfo(packet, stats[seconds])
 		w.WritePacket(packet.Metadata().CaptureInfo, packet.Data())
 		packetCount++
-		// Only capture 100 and then stop
 		if time.Since(start).Seconds() > float64(timeForStatistics) {
 			break
 		}
 	}
 
+	fmt.Println("Protocol stats")
+	for i := 0; i < 240; i++ {
+		fmt.Println("Second: ", i + 1)
+		for k, v := range stats[i].protocols {
+			fmt.Println(k, " : ", v)
+		}
+	}
 }
 
 func getDeviceName() string {
@@ -86,45 +111,34 @@ func getDeviceName() string {
 	return devices[number-1].Name
 }
 
-func printPacketInfo(packet gopacket.Packet) {
+func printPacketInfo(packet gopacket.Packet, data dataStats) {
 	etherLayer := packet.Layer(layers.LayerTypeEthernet)
 	if etherLayer != nil {
-		fmt.Println("Ethernet layer detected.")
 		ether, _ := etherLayer.(*layers.Ethernet)
-		fmt.Println("Ethernet type: ", ether.EthernetType)
-		fmt.Println()
+		writeStatsProtocol(ether.EthernetType.String(), data)
 	}
 	// Let's see if the packet is IP (even though the ether type told us)
 	ipLayer := packet.Layer(layers.LayerTypeIPv4)
 	if ipLayer != nil {
-		fmt.Println("IPv4 layer detected.")
 		ip, _ := ipLayer.(*layers.IPv4)
-
-		// IP layer variables:
-		// Version (Either 4 or 6)
-		// IHL (IP Header Length in 32-bit words)
-		// TOS, Length, ID, Flags, FragOffset, TTL, Protocol (TCP?),
-		// Checksum, SrcIP, DstIP
-		fmt.Printf("From %s to %s\n", ip.SrcIP, ip.DstIP)
-		fmt.Println("Protocol: ", ip.Protocol)
-		tcpLayer, _ := ipLayer.(*layers.TCP)
-		if tcpLayer != nil {
-			fmt.Println("Source Port: ", tcpLayer.SrcPort)
-			fmt.Println("Destination Port: ", tcpLayer.DstPort)
-		}
-		udpLayer, _ := ipLayer.(*layers.UDP)
-		if udpLayer != nil {
-			fmt.Println("Source Port: ", udpLayer)
-			fmt.Println("Destination Port: ", udpLayer)
-		}
-		fmt.Println()
+		writeStatsAddrIp(ip.SrcIP, ip.DstIP, data)
+		writeStatsProtocol(ip.Protocol.String(), data)
+	}
+	tcpLayer := packet.Layer(layers.LayerTypeTCP)
+	if tcpLayer != nil {
+		tcp, _ := tcpLayer.(*layers.TCP)
+		writeStatsPort(int(tcp.SrcPort), int(tcp.DstPort), data)
+	}
+	udpLayer := packet.Layer(layers.LayerTypeUDP)
+	if udpLayer != nil {
+		udp, _ := udpLayer.(*layers.UDP)
+		writeStatsPort(int(udp.SrcPort), int(udp.DstPort), data)
 	}
 
 	if err := packet.ErrorLayer(); err != nil {
 		fmt.Println("Error decoding some part of the packet:", err)
 	}
 
-	writeStats()
 }
 
 
