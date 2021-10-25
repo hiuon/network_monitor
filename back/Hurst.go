@@ -5,10 +5,10 @@ import "math"
 func getHRS(ds []int, time int){
 	// Get max and min values in each interval
 	// Вычисляем размах для каждого интервала
-	statR := make([]int, int(len(ds)/time))
-	statS := make([]float64, int(len(ds)/time))
-	statH := make([]float64, int(len(ds)/time))
-	for i := 0; i < int(len(ds)/time); i++ {
+	statR := make([]int, len(ds)/time)
+	statS := make([]float64, len(ds)/time)
+	statH := make([]float64, len(ds)/time)
+	for i := 0; i < len(ds)/time; i++ {
 		mean := 0.0
 		max := 0
 		min := 0

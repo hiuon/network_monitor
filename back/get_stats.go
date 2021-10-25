@@ -20,7 +20,17 @@ var (
 	packetCount int    = 0
 )
 
-func startGetStatistics() {
+func startGetStatistics(stats *[240]dataStats ) {
+	fmt.Println("Do you want to create new test file? (yes/no)")
+	var answer string
+	_, err = fmt.Scanln(&answer)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if answer != "yes" {
+		writeDataFromFile(stats)
+		return
+	}
 	f, _ := os.Create("test.pcap")
 	w := pcapgo.NewWriter(f)
 	err := w.WriteFileHeader(snapshotLen, layers.LinkTypeEthernet)
@@ -32,21 +42,9 @@ func startGetStatistics() {
 	//Choose device and get its name
 	device := getDeviceName()
 
-	fmt.Print("Enter test time duration (seconds): ")
-	var timeForStatistics int
-	//_, err = fmt.Scanln(&timeForStatistics)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	timeForStatistics = 240
-	stats := [240]dataStats{}
-	for i := 0; i < 240; i++ {
-		stats[i].srcPort = make(map[int]int)
-		stats[i].dstPort = make(map[int]int)
-		stats[i].protocols = make(map[string]int)
-		stats[i].srcAddrIp = make(map[int]int)
-		stats[i].dstAddrIp = make(map[int]int)
-	}
+	fmt.Println("Default test time duration 240 seconds...\nPlease wait...")
+	fmt.Println("Start time:", time.Now())
+	timeForStatistics := 240
 
 	// Open device
 	handle, err = pcap.OpenLive(device, int32(snapshotLen), promiscuous, timeout)
@@ -57,15 +55,58 @@ func startGetStatistics() {
 
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
-
-	//init stats structure
-
-
-	//get current time for cycle
 	start := time.Now()
-	//start
-	seconds := 0
 	for packet := range packetSource.Packets() {
+		err := w.WritePacket(packet.Metadata().CaptureInfo, packet.Data())
+		if err != nil {
+			return
+		}
+		if time.Since(start).Seconds() > float64(timeForStatistics) {
+			break
+		}
+	}
+	fmt.Println("End time: ", time.Now())
+
+	fmt.Println("Data has been wrote to test.pcap file")
+
+	writeDataFromFile(stats)
+
+	fmt.Println("Program is starting...")
+
+
+
+}
+
+func writeDataFromFile(stats *[240]dataStats) {
+
+	handle, err = pcap.OpenOffline("test.pcap")
+	if err != nil { log.Fatal(err) }
+	defer handle.Close()
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	flagTime := false
+	seconds := 0
+	numberPackets := 0
+	var start time.Time
+	for packet := range packetSource.Packets() {
+		numberPackets++
+		if !flagTime {
+			start = packet.Metadata().Timestamp
+			flagTime = true
+		}
+
+		if packet.Metadata().Timestamp.Sub(start).Microseconds() > int64((seconds + 1)*1000000) {
+			seconds++
+		}
+		if seconds == 240 {
+			seconds = 239
+		}
+		printPacketInfo(packet, stats[seconds])
+	}
+	//get current time for cycle
+	//start := time.Now()
+	//start
+	//seconds := 0
+	/*for packet := range packetSource.Packets() {
 		if int(time.Since(start).Seconds()) > seconds + 1 {
 			seconds++
 		}
@@ -75,7 +116,7 @@ func startGetStatistics() {
 		if time.Since(start).Seconds() > float64(timeForStatistics) {
 			break
 		}
-	}
+	}*/
 
 	fmt.Println("Protocol stats")
 	for i := 0; i < 240; i++ {
