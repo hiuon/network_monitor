@@ -25,12 +25,8 @@ func main() {
 	}
 
 	fmt.Println(HurstParam)
+	fmt.Println(HurstDisp)
 }
-
-
-
-
-
 
 //func printStatistics(pcapfile string){
 //	handle, err = pcap.OpenOffline(pcapfile)
