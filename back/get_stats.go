@@ -20,7 +20,7 @@ var (
 	packetCount int    = 0
 )
 
-func startGetStatistics(stats *[240]dataStats ) {
+func startGetStatistics(stats *[240]dataStats) {
 	fmt.Println("Do you want to create new test file? (yes/no)")
 	var answer string
 	_, err = fmt.Scanln(&answer)
@@ -73,14 +73,14 @@ func startGetStatistics(stats *[240]dataStats ) {
 
 	fmt.Println("Program is starting...")
 
-
-
 }
 
 func writeDataFromFile(stats *[240]dataStats) {
 
 	handle, err = pcap.OpenOffline("test.pcap")
-	if err != nil { log.Fatal(err) }
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer handle.Close()
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	flagTime := false
@@ -94,9 +94,10 @@ func writeDataFromFile(stats *[240]dataStats) {
 			flagTime = true
 		}
 
-		if packet.Metadata().Timestamp.Sub(start).Microseconds() > int64((seconds + 1)*1000000) {
+		if packet.Metadata().Timestamp.Sub(start).Microseconds() > int64((seconds+1)*1000000) {
 			seconds++
 		}
+
 		if seconds == 240 {
 			seconds = 239
 		}
@@ -118,13 +119,13 @@ func writeDataFromFile(stats *[240]dataStats) {
 		}
 	}*/
 
-	fmt.Println("Protocol stats")
-	for i := 0; i < 240; i++ {
-		fmt.Println("Second: ", i + 1)
-		for k, v := range stats[i].protocols {
-			fmt.Println(k, " : ", v)
-		}
-	}
+	//fmt.Println("Protocol stats")
+	//for i := 0; i < 240; i++ {
+	//	fmt.Println("Second: ", i + 1)
+	//	for k, v := range stats[i].protocols {
+	//		fmt.Println(k, " : ", v)
+	//	}
+	//}
 }
 
 func getDeviceName() string {
@@ -181,5 +182,3 @@ func printPacketInfo(packet gopacket.Packet, data dataStats) {
 	}
 
 }
-
-

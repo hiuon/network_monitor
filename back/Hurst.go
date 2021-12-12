@@ -4,7 +4,12 @@ import (
 	"math"
 )
 
-func getHRS(ds []int, time int, data *[4]float64, hurstdisp *[4]float64, item int) {
+func getHRS(stats [240]dataStats, time int, data *[4]float64, hurstdisp *[4]float64, item int) {
+
+	ds := make([]int, 240)
+	for i := 0; i < 240; i++ {
+		ds[i] = stats[i].protocols["IPv4"]
+	}
 	// Get max and min values in each interval
 	// Вычисляем размах для каждого интервала
 	statR := make([]int, len(ds)/time)
