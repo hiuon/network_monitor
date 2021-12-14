@@ -43,6 +43,9 @@ func startSniffer(hurstTest [4]float64, hurstTestDisp [4]float64) {
 			for i := 0; i < len(HurstParam); i++ {
 				if HurstParam[i] > hurstTest[i] + 3 * hurstTestDisp[i] || HurstParam[i] < hurstTest[i] - 3 * hurstTestDisp[i] {
 					fmt.Println("Warning! Something wrong with your network...")
+					fmt.Println("Test data: ", hurstTest)
+					fmt.Println("Test data disp: ", hurstTestDisp)
+
 				}
 			}
 			fmt.Println(HurstParam)
