@@ -33,9 +33,6 @@ func startSniffer(hurstTest [4]float64, hurstTestDisp [4]float64) {
 			flagWaiting = false
 		}
 		readDataFromFile(&stats, getRealData(device), index)
-		for i := index; i < index+5; i++ {
-			fmt.Println(stats[i].protocols["IPv4"])
-		}
 		index += 5
 		for i := 0; i < len(timings); i++ {
 			getHRS(stats, timings[i], &HurstParam, &HurstDisp, i)
@@ -43,6 +40,11 @@ func startSniffer(hurstTest [4]float64, hurstTestDisp [4]float64) {
 		if flagWaiting {
 			fmt.Println("I'm here:", index)
 		} else {
+			for i := 0; i < len(HurstParam); i++ {
+				if HurstParam[i] > hurstTest[i] + 3 * hurstTestDisp[i] || HurstParam[i] < hurstTest[i] - 3 * hurstTestDisp[i] {
+					fmt.Println("Warning! Something wrong with your network...")
+				}
+			}
 			fmt.Println(HurstParam)
 			fmt.Println(HurstDisp)
 		}
