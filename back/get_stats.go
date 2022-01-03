@@ -8,6 +8,7 @@ import (
 	"github.com/google/gopacket/pcapgo"
 	"log"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -45,6 +46,9 @@ func startGetStatistics(stats *[240]dataStats) {
 	fmt.Println("Default test time duration 240 seconds...\nPlease wait...")
 	fmt.Println("Start time:", time.Now())
 	timeForStatistics := 240
+	//for i := 0; i < timeForStatistics; i +=5 {
+	//	readDataFromTestFile(stats, getTestData(device), i)
+	//}
 
 	// Open device
 	handle, err = pcap.OpenLive(device, int32(snapshotLen), promiscuous, timeout)
@@ -65,6 +69,7 @@ func startGetStatistics(stats *[240]dataStats) {
 			break
 		}
 	}
+
 	fmt.Println("End time: ", time.Now())
 
 	fmt.Println("Data has been wrote to test.pcap file")
@@ -181,4 +186,65 @@ func printPacketInfo(packet gopacket.Packet, data dataStats) {
 		fmt.Println("Error decoding some part of the packet:", err)
 	}
 
+}
+
+func getTestData(device string) string {
+	date := time.Now()
+	fileName := date.Month().String() + strconv.Itoa(date.Day()) + strconv.Itoa(date.Year()) + "-" + strconv.Itoa(date.Hour()) + strconv.Itoa(date.Minute()) + strconv.Itoa(date.Second())
+	f, _ := os.Create(fileName + ".pcap")
+	w := pcapgo.NewWriter(f)
+	err := w.WriteFileHeader(snapshotLen, layers.LinkTypeEthernet)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	handle, err = pcap.OpenLive(device, int32(snapshotLen), promiscuous, timeout)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer handle.Close()
+
+	start := time.Now()
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	for packet := range packetSource.Packets() {
+		err := w.WritePacket(packet.Metadata().CaptureInfo, packet.Data())
+		if err != nil {
+			return ""
+		}
+		if time.Since(start).Seconds() > 5.0 {
+			break
+		}
+	}
+
+	return fileName
+}
+
+func readDataFromTestFile(stats *[240]dataStats, fileName string, index int) {
+	handle, err = pcap.OpenOffline(fileName + ".pcap")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer handle.Close()
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	flagTime := false
+	seconds := 0
+	var start time.Time
+	for packet := range packetSource.Packets() {
+		if !flagTime {
+			start = packet.Metadata().Timestamp
+			flagTime = true
+		}
+
+		if packet.Metadata().Timestamp.Sub(start).Microseconds() > int64((seconds+1)*1000000) {
+			seconds++
+		}
+
+		printPacketInfo(packet, stats[seconds+index])
+	}
+	handle.Close()
+	e := os.Remove(fileName + ".pcap")
+	if e != nil {
+		log.Fatal(e)
+	}
 }

@@ -21,36 +21,38 @@ func startSniffer(hurstTest [4]float64, hurstTestDisp [4]float64) {
 		stats[i].srcAddrIp = make(map[int]int)
 		stats[i].dstAddrIp = make(map[int]int)
 	}
-	timings := [4]int{5, 15, 60, 120}
-	HurstParam := [4]float64{}
-	HurstDisp := [4]float64{}
+	HurstParam := hurstTest
 	index := 0
-	flagWaiting := true
 	device := getDeviceName()
 	for true {
 		if index == 240 {
 			index = 0
-			flagWaiting = false
 		}
-		readDataFromFile(&stats, getRealData(device), index)
 		index += 5
-		for i := 0; i < len(timings); i++ {
-			getHRS(stats, timings[i], &HurstParam, &HurstDisp, i)
-		}
-		if flagWaiting {
-			fmt.Println("I'm here:", index)
-		} else {
-			for i := 0; i < len(HurstParam); i++ {
-				if HurstParam[i] > hurstTest[i] + 3 * hurstTestDisp[i] || HurstParam[i] < hurstTest[i] - 3 * hurstTestDisp[i] {
-					fmt.Println("Warning! Something wrong with your network...")
-					fmt.Println("Test data: ", hurstTest)
-					fmt.Println("Test data disp: ", hurstTestDisp)
+		name := getRealData(device)
+		readDataFromFile(&stats, name, index - 5)
+		getHRSReal(stats, index, &HurstParam, 0, 5)
 
-				}
+		//if index % 15 == 0 {
+			getHRSReal(stats, index, &HurstParam, 1, 15)
+		//}
+		//if index % 60 == 0 {
+			getHRSReal(stats, index, &HurstParam, 2, 60)
+		//}
+		//if index % 120 == 0 {
+			getHRSReal(stats, index, &HurstParam, 3, 120)
+		//}
+
+		
+		for i := 0; i < len(HurstParam); i++ {
+			if HurstParam[i] > hurstTest[i] + 2 * hurstTestDisp[i] || HurstParam[i] < hurstTest[i] - 2 * hurstTestDisp[i] {
+				fmt.Println("Warning! Something wrong with your network...")
 			}
-			fmt.Println(HurstParam)
-			fmt.Println(HurstDisp)
 		}
+		fmt.Println(index - 5)
+		fmt.Printf("Test data: %.2f\n", hurstTest)
+		fmt.Printf("Test data disp: %.2f\n", hurstTestDisp)
+		fmt.Printf("Real data: %.2f\n", HurstParam)
 	}
 
 }
@@ -74,7 +76,9 @@ func readDataFromFile(stats *[240]dataStats, fileName string, index int) {
 		if packet.Metadata().Timestamp.Sub(start).Microseconds() > int64((seconds+1)*1000000) {
 			seconds++
 		}
-
+		if seconds + index == 240 {
+			seconds -= 1
+		}
 		printPacketInfo(packet, stats[seconds+index])
 	}
 	handle.Close()
@@ -104,13 +108,14 @@ func getRealData(device string) string {
 	start := time.Now()
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
+		if time.Since(start).Seconds() > 6.0 {
+			break
+		}
 		err := w.WritePacket(packet.Metadata().CaptureInfo, packet.Data())
 		if err != nil {
 			return ""
 		}
-		if time.Since(start).Seconds() > 5.0 {
-			break
-		}
+
 	}
 
 	return fileName
